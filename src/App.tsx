@@ -18,7 +18,7 @@ export default function App() {
   const path = typeof window !== "undefined" ? window.location.pathname : "/";
   const isAdmin = path === "/admin";
   return (
-      <main className="p-4">
+    <main className="p-4">
       {isAdmin ? <Admin /> : <Game />}
     </main>
   );
@@ -53,7 +53,7 @@ function Game() {
       try {
         const blob = new Blob([JSON.stringify({ sessionId })], { type: "application/json" });
         navigator.sendBeacon(url, blob);
-      } catch {}
+      } catch { }
       try {
         fetch(url, {
           method: "POST",
@@ -61,8 +61,8 @@ function Game() {
           body: JSON.stringify({ sessionId }),
           keepalive: true,
           mode: "cors",
-        }).catch(() => {});
-      } catch {}
+        }).catch(() => { });
+      } catch { }
       // last resort
       leave({ sessionId });
     };
@@ -170,10 +170,10 @@ function Game() {
       const head = me.body[0];
       if (head) {
         const w = state.gridWidth, h = state.gridHeight;
-        const dist2 = (a: {x:number;y:number}, b: {x:number;y:number}) => {
+        const dist2 = (a: { x: number; y: number }, b: { x: number; y: number }) => {
           const dx = Math.min(Math.abs(a.x - b.x), w - Math.abs(a.x - b.x));
           const dy = Math.min(Math.abs(a.y - b.y), h - Math.abs(a.y - b.y));
-          return dx*dx + dy*dy;
+          return dx * dx + dy * dy;
         };
         for (const p of state.players) {
           if (p.sessionId === sessionId || !p.alive) continue;
@@ -241,7 +241,7 @@ function Game() {
 
   if (!name) {
     return <NamePrompt onSubmit={(n) => {
-      const trimmed = n.trim().slice(0, 24) || `Player-${Math.random().toString(36).slice(2,5)}`;
+      const trimmed = n.trim().slice(0, 24) || `Player-${Math.random().toString(36).slice(2, 5)}`;
       setName(trimmed);
       localStorage.setItem("snake_name", trimmed);
     }} />;
@@ -256,22 +256,46 @@ function Game() {
       <canvas ref={canvasRef} className="border border-slate-700 rounded shadow" />
       {!state && <div className="text-slate-400">Loading state…</div>}
       {state && (
-        <div className="fixed top-2 right-2 bg-black/40 text-slate-200 border border-slate-700 rounded p-2 min-w-44">
-          <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Leaderboard</div>
-          <ul className="text-sm">
-            {[...state.players]
-              .sort((a, b) => b.score - a.score)
-              .slice(0, 8)
-              .map((p) => {
-                const me = p.sessionId === sessionId;
-                return (
-                  <li key={p.sessionId} className={`flex items-center justify-between gap-3 ${me ? "text-amber-300" : ""}`}>
-                    <span className="truncate max-w-36" title={p.name}>{p.name}{p.isBot ? " (bot)" : ""}</span>
-                    <span className="tabular-nums">{p.score}</span>
-                  </li>
-                );
-              })}
-          </ul>
+        <div className="fixed top-2 right-2 flex flex-col gap-2 min-w-54">
+          <div className="bg-black/40 text-slate-200 border border-slate-700 rounded p-2">
+            <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Leaderboard</div>
+            <ul className="text-sm">
+              {[...state.players]
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 8)
+                .map((p) => {
+                  const me = p.sessionId === sessionId;
+                  return (
+                    <li key={p.sessionId} className={`flex items-center justify-between gap-3 ${me ? "text-amber-300" : ""}`}>
+                      <span className="truncate max-w-36" title={p.name}>{p.name}{p.isBot ? " (bot)" : ""}</span>
+                      <span className="tabular-nums">{p.score}</span>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+          {(() => {
+            const me = state.players.find((p) => p.sessionId === sessionId);
+            if (!me?.hasSuper) return null;
+            return (
+              <div className="flex items-center gap-2 bg-amber-500/90 text-black px-3 py-2 rounded shadow-lg border border-amber-300">
+                <span className="font-semibold">Super ready</span>
+                <span className="text-xs">Press</span>
+                <kbd className="px-1 py-0.5 bg-black/20 rounded">Space</kbd>
+              </div>
+            );
+          })()}
+          <div className="bg-black/40 text-slate-200 border border-slate-700 rounded p-2 text-xs text-slate-400 max-w-44">
+            <ul className="list-disc list-inside space-y-1">
+              <li>Move with arrow keys or WASD</li>
+              <li>Yellow border shows your snake</li>
+              <li>Eat fruits to grow (1 point each)</li>
+              <li>Collision with any snake = eliminated</li>
+              <li>
+                Gold <span className="inline-block px-1 py-0.5 bg-amber-500 text-black rounded text-[10px]">super-fruit</span> gives power to eat closest snake (Space)
+              </li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
@@ -299,7 +323,12 @@ function NamePrompt({ onSubmit }: { onSubmit: (name: string) => void }) {
         <li>Your snake will have a <p className="inline-block px-1 py-0.5 bg-amber-400 text-black rounded">yellow border</p> around it's head.</li>
         <li>Snakes will grow 1 point when they eat a fruit.</li>
         <li>Any snake will be eliminated if they hit another snake (including itself).</li>
-        <li>Occassionally, the game will generate a <p className="inline-block px-1 py-0.5 bg-red-500 text-white rounded">super-fruit</p> which allows you to eat the closest snake. If you have the super-fruit, the closest snake will be shown in a red border.</li>
+        <li>
+          Occasionally, the game will generate a
+          <p className="inline-block px-1 py-0.5 bg-red-500 text-white rounded">super-fruit</p>.
+          If you collect a super-fruit, you gain the ability to instantly eliminate the closest snake on the board by pressing the
+          <kbd className="px-1 py-0.5 bg-slate-200 text-black rounded">Space</kbd> key. When holding a super-fruit, the closest snake will have a red border around its head.
+        </li>
       </ul>
     </div>
   );
@@ -339,35 +368,35 @@ function Admin() {
         <h3 className="font-semibold">Update Config</h3>
         <div className="grid grid-cols-2 gap-2">
           <input className="border px-2 py-1 rounded" placeholder="tickMs"
-                 value={tickMs} onChange={(e) => setTickMs(e.target.value)} />
+            value={tickMs} onChange={(e) => setTickMs(e.target.value)} />
           <input className="border px-2 py-1 rounded" placeholder="grid width"
-                 value={gridW} onChange={(e) => setGridW(e.target.value)} />
+            value={gridW} onChange={(e) => setGridW(e.target.value)} />
           <input className="border px-2 py-1 rounded" placeholder="grid height"
-                 value={gridH} onChange={(e) => setGridH(e.target.value)} />
+            value={gridH} onChange={(e) => setGridH(e.target.value)} />
           <input className="border px-2 py-1 rounded" placeholder="max fruits"
-                 value={fruits} onChange={(e) => setFruits(e.target.value)} />
+            value={fruits} onChange={(e) => setFruits(e.target.value)} />
           <input className="border px-2 py-1 rounded" placeholder="target bots"
-                 value={bots} onChange={(e) => setBots(e.target.value)} />
+            value={bots} onChange={(e) => setBots(e.target.value)} />
         </div>
         <div className="flex gap-2">
           <button className="px-3 py-1 rounded bg-blue-600 text-white cursor-pointer"
-                  onClick={() => setConfig({
-                    tickMs: tickMs ? Number(tickMs) : undefined,
-                    gridWidth: gridW ? Number(gridW) : undefined,
-                    gridHeight: gridH ? Number(gridH) : undefined,
-                    maxFruits: fruits ? Number(fruits) : undefined,
-                    targetBots: bots ? Number(bots) : undefined,
-                  })}>Apply</button>
+            onClick={() => setConfig({
+              tickMs: tickMs ? Number(tickMs) : undefined,
+              gridWidth: gridW ? Number(gridW) : undefined,
+              gridHeight: gridH ? Number(gridH) : undefined,
+              maxFruits: fruits ? Number(fruits) : undefined,
+              targetBots: bots ? Number(bots) : undefined,
+            })}>Apply</button>
           <button className="px-3 py-1 rounded border cursor-pointer"
-                  onClick={() => { setTickMs(""); setGridW(""); setGridH(""); setFruits(""); setBots(""); }}>Clear</button>
+            onClick={() => { setTickMs(""); setGridW(""); setGridH(""); setFruits(""); setBots(""); }}>Clear</button>
         </div>
       </div>
 
       <div className="p-4 border rounded flex gap-2">
         <button className="px-3 py-1 rounded bg-emerald-600 text-white cursor-pointer"
-                onClick={() => restart({ tickMs: tickMs ? Number(tickMs) : undefined })}>Restart (keep players)</button>
+          onClick={() => restart({ tickMs: tickMs ? Number(tickMs) : undefined })}>Restart (keep players)</button>
         <button className="px-3 py-1 rounded bg-rose-600 text-white cursor-pointer"
-                onClick={() => wipe({ tickMs: tickMs ? Number(tickMs) : undefined })}>Wipe (remove players)</button>
+          onClick={() => wipe({ tickMs: tickMs ? Number(tickMs) : undefined })}>Wipe (remove players)</button>
       </div>
     </div>
   );
