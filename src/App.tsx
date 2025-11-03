@@ -348,7 +348,7 @@ function Admin() {
 
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-4">
-      <div className="text-slate-600 text-sm">No auth; anyone on /admin can control the game.</div>
+      {/* <div className="text-slate-600 text-sm">No auth; anyone on /admin can control the game.</div> */}
       <div className="p-4 border rounded">
         <h3 className="font-semibold mb-2">Current</h3>
         {state ? (
