@@ -204,21 +204,30 @@ export const tick = mutation({
     const players = await ctx.db.query("players").collect();
     const fruits = await ctx.db.query("fruits").collect();
 
-    // Cleanup inactive players
+    // Cleanup inactive players (fast cleanup to avoid duplicate lingering)
     for (const p of players) {
-      if (now - p.lastSeen > 30_000) {
+      if (now - p.lastSeen > 5_000) {
         await ctx.db.delete(p._id);
       }
     }
 
-    // Ensure fruits count
-    const toSpawn = Math.max(0, s.maxFruits - fruits.length);
-    for (let i = 0; i < toSpawn; i++) {
-      await ctx.db.insert("fruits", {
-        x: randomInt(s.gridWidth),
-        y: randomInt(s.gridHeight),
-        spawnedAt: now,
-      });
+    // Ensure fruits count based on number of players (incremental only)
+    const numPlayers = players.length;
+    let desired = 1;
+    if (numPlayers >= 1 && numPlayers <= 3) desired = 2;
+    else if (numPlayers >= 4 && numPlayers <= 10) desired = 4;
+    else if (numPlayers > 10) desired = 5;
+    const maxCells = s.gridWidth * s.gridHeight;
+    desired = Math.min(desired, maxCells);
+    if (fruits.length < desired) {
+      const toSpawn = desired - fruits.length;
+      for (let i = 0; i < toSpawn; i++) {
+        await ctx.db.insert("fruits", {
+          x: randomInt(s.gridWidth),
+          y: randomInt(s.gridHeight),
+          spawnedAt: now,
+        });
+      }
     }
 
     // Ensure bots
@@ -391,6 +400,19 @@ export const adminWipe = mutation({
     const updates: any = { lastTickAt: Date.now() };
     if (tickMs !== undefined) updates.tickMs = Math.max(30, Math.floor(tickMs));
     await ctx.db.patch(s._id, updates);
+    return null;
+  },
+});
+
+export const internalLeave = internalMutation({
+  args: { sessionId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { sessionId }) => {
+    const p = await ctx.db
+      .query("players")
+      .withIndex("by_session", (q: any) => q.eq("sessionId", sessionId))
+      .unique();
+    if (p) await ctx.db.delete(p._id);
     return null;
   },
 });

@@ -18,14 +18,9 @@ export default function App() {
   const path = typeof window !== "undefined" ? window.location.pathname : "/";
   const isAdmin = path === "/admin";
   return (
-    <>
-      <header className="sticky top-0 z-10 p-4 border-b-2 border-slate-200 dark:border-slate-800">
-        {isAdmin ? "Snake Admin" : "Online Snake (Convex)"}
-      </header>
       <main className="p-4">
-        {isAdmin ? <Admin /> : <Game />}
-      </main>
-    </>
+      {isAdmin ? <Admin /> : <Game />}
+    </main>
   );
 }
 
@@ -52,11 +47,30 @@ function Game() {
       localStorage.setItem("snake_color", c);
     }
     join({ sessionId, name, color: color || undefined });
-    const onUnload = () => {
+    const onPageHide = () => {
+      const url = `${import.meta.env.VITE_CONVEX_URL}/leave`;
+      try {
+        const blob = new Blob([JSON.stringify({ sessionId })], { type: "application/json" });
+        navigator.sendBeacon(url, blob);
+      } catch {}
+      try {
+        fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+          keepalive: true,
+          mode: "cors",
+        }).catch(() => {});
+      } catch {}
+      // last resort
       leave({ sessionId });
     };
-    window.addEventListener("beforeunload", onUnload);
-    return () => window.removeEventListener("beforeunload", onUnload);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onPageHide);
+    };
   }, [name, color, sessionId, join, leave]);
 
   useEffect(() => {
@@ -134,22 +148,51 @@ function Game() {
     ctx.font = "12px sans-serif";
     ctx.textBaseline = "top";
     for (const p of state.players) {
+      const isSelf = p.sessionId === sessionId;
       ctx.globalAlpha = p.alive ? 1.0 : 0.35;
+      // draw tail segments first in body color
       ctx.fillStyle = p.color;
-      for (let i = p.body.length - 1; i >= 0; i--) {
+      for (let i = p.body.length - 1; i >= 1; i--) {
         const seg = p.body[i];
-        const inset = i === 0 ? 1 : 3;
+        const inset = 3;
         ctx.fillRect(seg.x * gridSize + inset, seg.y * gridSize + inset, gridSize - inset * 2, gridSize - inset * 2);
+        if (isSelf) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(seg.x * gridSize + inset - 1, seg.y * gridSize + inset - 1, gridSize - (inset - 1) * 2, gridSize - (inset - 1) * 2);
+        }
+      }
+      // draw head with special color if bot
+      const head = p.body[0];
+      if (head) {
+        const headInset = 1;
+        if (p.isBot) {
+          // bot head: bright contrast color
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(head.x * gridSize + headInset, head.y * gridSize + headInset, gridSize - headInset * 2, gridSize - headInset * 2);
+          // outline for visibility
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(head.x * gridSize + headInset + 1, head.y * gridSize + headInset + 1, gridSize - (headInset + 1) * 2, gridSize - (headInset + 1) * 2);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(head.x * gridSize + headInset, head.y * gridSize + headInset, gridSize - headInset * 2, gridSize - headInset * 2);
+        }
+        if (isSelf) {
+          // Extra highlight for the local player's head
+          ctx.strokeStyle = "#fbbf24"; // amber-400
+          ctx.lineWidth = 3;
+          ctx.strokeRect(head.x * gridSize + headInset - 1.5, head.y * gridSize + headInset - 1.5, gridSize - (headInset - 1.5) * 2, gridSize - (headInset - 1.5) * 2);
+        }
       }
       // Label
-      const head = p.body[0];
       if (head) {
         ctx.fillStyle = "#e5e7eb";
         ctx.fillText(`${p.name} (${p.score})`, head.x * gridSize + 2, head.y * gridSize + 2);
       }
       ctx.globalAlpha = 1.0;
     }
-  }, [state]);
+  }, [state, sessionId]);
 
   if (!name) {
     return <NamePrompt onSubmit={(n) => {
@@ -167,6 +210,25 @@ function Game() {
       </div>
       <canvas ref={canvasRef} className="border border-slate-700 rounded shadow" />
       {!state && <div className="text-slate-400">Loading state…</div>}
+      {state && (
+        <div className="fixed top-2 right-2 bg-black/40 text-slate-200 border border-slate-700 rounded p-2 min-w-44">
+          <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Leaderboard</div>
+          <ul className="text-sm">
+            {[...state.players]
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 8)
+              .map((p) => {
+                const me = p.sessionId === sessionId;
+                return (
+                  <li key={p.sessionId} className={`flex items-center justify-between gap-3 ${me ? "text-amber-300" : ""}`}>
+                    <span className="truncate max-w-36" title={p.name}>{p.name}{p.isBot ? " (bot)" : ""}</span>
+                    <span className="tabular-nums">{p.score}</span>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
