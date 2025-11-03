@@ -286,7 +286,7 @@ function Game() {
               </div>
             );
           })()}
-          <div className="bg-black/40 text-slate-200 border border-slate-700 rounded p-2 text-xs text-slate-400 max-w-44">
+          <div className="bg-black/40 text-slate-200 border border-slate-700 rounded p-2 text-xs text-slate-400 max-w-54">
             <ul className="list-disc list-inside space-y-1">
               <li>Move with arrow keys or WASD</li>
               <li>Yellow border shows your snake</li>
