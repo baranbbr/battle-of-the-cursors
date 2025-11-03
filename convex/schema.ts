@@ -1,12 +1,23 @@
+// convex/schema.ts
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-// The schema is entirely optional.
-// You can delete this file (schema.ts) and the
-// app will continue to work.
-// The schema provides more precise TypeScript types.
 export default defineSchema({
-  numbers: defineTable({
-    value: v.number(),
-  }),
+  players: defineTable({
+    sessionId: v.string(),   // unique per tab/device
+    name: v.string(),        // e.g. "Player-3F2"
+    color: v.string(),       // UI color
+    x: v.number(),
+    y: v.number(),
+    lastSeen: v.number(),    // Date.now()
+  }).index("by_session", ["sessionId"]),
+
+  bullets: defineTable({
+    ownerSessionId: v.string(),
+    x: v.number(),
+    y: v.number(),
+    vx: v.number(),
+    vy: v.number(),
+    createdAt: v.number(),
+  }).index("by_owner", ["ownerSessionId"]),
 });
