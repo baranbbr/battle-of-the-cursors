@@ -66,9 +66,10 @@ export const getState = query({
         alive: v.boolean(),
         isBot: v.boolean(),
         score: v.number(),
+        hasSuper: v.boolean(),
       })
     ),
-    fruits: v.array(v.object({ x: v.number(), y: v.number() })),
+    fruits: v.array(v.object({ x: v.number(), y: v.number(), isSuper: v.boolean() })),
   }),
   handler: async (ctx) => {
     // Queries cannot write; read state if present, otherwise use defaults
@@ -90,8 +91,9 @@ export const getState = query({
         alive: p.alive,
         isBot: p.isBot,
         score: p.score,
+        hasSuper: !!p.hasSuper,
       })),
-      fruits: fruits.map((f: any) => ({ x: f.x, y: f.y })),
+      fruits: fruits.map((f: any) => ({ x: f.x, y: f.y, isSuper: !!f.isSuper })),
     };
   },
 });
@@ -124,6 +126,7 @@ export const join = mutation({
         alive: true,
         isBot: false,
         score: 0,
+        hasSuper: false,
         lastSeen: now,
       });
     } else {
@@ -132,6 +135,7 @@ export const join = mutation({
         color: color ?? existing.color,
         lastSeen: now,
         alive: true,
+        hasSuper: false,
       });
     }
     return null;
@@ -226,8 +230,25 @@ export const tick = mutation({
           x: randomInt(s.gridWidth),
           y: randomInt(s.gridHeight),
           spawnedAt: now,
+          isSuper: false,
         });
       }
+    }
+
+    // Occasionally spawn a super-fruit (at most one at a time). Higher chance with fewer players.
+    const anySuper = (await ctx.db.query("fruits").collect()).some((f: any) => f.isSuper);
+    let superProb = 0.05; // default
+    if (numPlayers <= 1) superProb = 0.20;
+    else if (numPlayers <= 3) superProb = 0.15;
+    else if (numPlayers <= 10) superProb = 0.08;
+    else superProb = 0.04;
+    if (!anySuper && Math.random() < superProb) {
+      await ctx.db.insert("fruits", {
+        x: randomInt(s.gridWidth),
+        y: randomInt(s.gridHeight),
+        spawnedAt: now,
+        isSuper: true,
+      });
     }
 
     // Ensure bots
@@ -274,6 +295,9 @@ export const tick = mutation({
         if (f && f.x === nHead.x && f.y === nHead.y) {
           await ctx.db.delete(f._id);
           ate = true;
+          if (f.isSuper) {
+            await ctx.db.patch(p._id, { hasSuper: true });
+          }
           break;
         }
       }
@@ -322,6 +346,7 @@ export const spawnBot = internalMutation({
       alive: true,
       isBot: true,
       score: 0,
+      hasSuper: false,
       lastSeen: Date.now(),
     });
     return null;
@@ -413,6 +438,51 @@ export const internalLeave = internalMutation({
       .withIndex("by_session", (q: any) => q.eq("sessionId", sessionId))
       .unique();
     if (p) await ctx.db.delete(p._id);
+    return null;
+  },
+});
+
+export const superEat = mutation({
+  args: { sessionId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { sessionId }) => {
+    const me = await ctx.db
+      .query("players")
+      .withIndex("by_session", (q: any) => q.eq("sessionId", sessionId))
+      .unique();
+    if (!me || !me.alive || !me.hasSuper) return null;
+    const players = await ctx.db.query("players").collect();
+    const others = players.filter((p: any) => p._id !== me._id && p.alive);
+    if (others.length === 0) return null;
+    const head = (me.body as Array<Vec>)[0];
+    const s = await getOrInitState(ctx);
+    const dist = (a: Vec, b: Vec) => {
+      // toroidal shortest distance
+      const dx = Math.min(Math.abs(a.x - b.x), s.gridWidth - Math.abs(a.x - b.x));
+      const dy = Math.min(Math.abs(a.y - b.y), s.gridHeight - Math.abs(a.y - b.y));
+      return dx * dx + dy * dy;
+    };
+    let target: any = null;
+    let best = Number.POSITIVE_INFINITY;
+    for (const p of others) {
+      const h = (p.body as Array<Vec>)[0];
+      if (!h) continue;
+      const d2 = dist(head, h);
+      if (d2 < best) { best = d2; target = p; }
+    }
+    if (target) {
+      await ctx.db.patch(target._id, { alive: false });
+      const myBody: Array<Vec> = me.body as Array<Vec>;
+      const theirBody: Array<Vec> = target.body as Array<Vec>;
+      const extra = Math.max(0, (theirBody?.length ?? 0));
+      let newBody = myBody;
+      if (extra > 0) {
+        const tail = myBody[myBody.length - 1] ?? myBody[0];
+        const additions: Array<Vec> = Array.from({ length: extra }, () => ({ x: tail.x, y: tail.y }));
+        newBody = [...myBody, ...additions];
+      }
+      await ctx.db.patch(me._id, { body: newBody, hasSuper: false, score: (me.score ?? 0) + 3 });
+    }
     return null;
   },
 });

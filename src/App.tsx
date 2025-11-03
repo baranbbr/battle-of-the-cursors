@@ -34,6 +34,7 @@ function Game() {
   const leave = useMutation(api.game.leave);
   const heartbeat = useMutation(api.game.heartbeat);
   const setDirection = useMutation(api.game.setDirection);
+  const superEat = useMutation(api.game.superEat);
   const triggerTick = useMutation(api.game.tick);
 
   const state = useQuery(api.game.getState, {});
@@ -102,6 +103,11 @@ function Game() {
         case "d":
         case "D":
           dir = { x: 1, y: 0 }; break;
+        case " ":
+        case "Spacebar":
+          // consume super-fruit power if available
+          superEat({ sessionId });
+          return;
       }
       if (dir) setDirection({ sessionId, dir });
     };
@@ -140,13 +146,43 @@ function Game() {
 
     // Fruits
     for (const f of state.fruits) {
-      ctx.fillStyle = "#ef4444";
+      // draw fruit base
+      ctx.fillStyle = f.isSuper ? "#7f1d1d" : "#ef4444";
       ctx.fillRect(f.x * gridSize + 2, f.y * gridSize + 2, gridSize - 4, gridSize - 4);
+      if (f.isSuper) {
+        // red outline / glow for super-fruit
+        ctx.strokeStyle = "#f43f5e";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(f.x * gridSize + 1.5, f.y * gridSize + 1.5, gridSize - 3, gridSize - 3);
+      }
     }
 
     // Players
     ctx.font = "12px sans-serif";
     ctx.textBaseline = "top";
+    const me = state.players.find((p) => p.sessionId === sessionId);
+    // If I have super, find closest snake to highlight
+    let closestTarget: typeof state.players[number] | null = null;
+    if (me?.hasSuper) {
+      const head = me.body[0];
+      if (head) {
+        const w = state.gridWidth, h = state.gridHeight;
+        const dist2 = (a: {x:number;y:number}, b: {x:number;y:number}) => {
+          const dx = Math.min(Math.abs(a.x - b.x), w - Math.abs(a.x - b.x));
+          const dy = Math.min(Math.abs(a.y - b.y), h - Math.abs(a.y - b.y));
+          return dx*dx + dy*dy;
+        };
+        for (const p of state.players) {
+          if (p.sessionId === sessionId || !p.alive) continue;
+          const h2 = p.body[0];
+          if (!h2) continue;
+          if (!closestTarget || dist2(head, h2) < dist2(head, closestTarget.body[0])) {
+            closestTarget = p;
+          }
+        }
+      }
+    }
+
     for (const p of state.players) {
       const isSelf = p.sessionId === sessionId;
       ctx.globalAlpha = p.alive ? 1.0 : 0.35;
@@ -181,6 +217,12 @@ function Game() {
         if (isSelf) {
           // Extra highlight for the local player's head
           ctx.strokeStyle = "#fbbf24"; // amber-400
+          ctx.lineWidth = 3;
+          ctx.strokeRect(head.x * gridSize + headInset - 1.5, head.y * gridSize + headInset - 1.5, gridSize - (headInset - 1.5) * 2, gridSize - (headInset - 1.5) * 2);
+        }
+        if (closestTarget && p.sessionId === closestTarget.sessionId) {
+          // Highlight closest target if I have super
+          ctx.strokeStyle = "#ef4444";
           ctx.lineWidth = 3;
           ctx.strokeRect(head.x * gridSize + headInset - 1.5, head.y * gridSize + headInset - 1.5, gridSize - (headInset - 1.5) * 2, gridSize - (headInset - 1.5) * 2);
         }
@@ -248,6 +290,14 @@ function NamePrompt({ onSubmit }: { onSubmit: (name: string) => void }) {
         />
         <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Join</button>
       </form>
+      <ul className="text-slate-400 mb-4 list-disc list-inside text-sm mt-4">
+        <li>The is a simple, online snake game.</li>
+        <li>You can move your snake with the arrow keys or WASD.</li>
+        <li>Your snake will have a <p className="inline-block px-1 py-0.5 bg-amber-400 text-black rounded">yellow border</p> around it's head.</li>
+        <li>Snakes will grow 1 point when they eat a fruit.</li>
+        <li>Any snake will be eliminated if they hit another snake (including itself).</li>
+        <li>Occassionally, the game will generate a <p className="inline-block px-1 py-0.5 bg-red-500 text-white rounded">super-fruit</p> which allows you to eat the closest snake. If you have the super-fruit, the closest snake will be shown in a red border.</li>
+      </ul>
     </div>
   );
 }

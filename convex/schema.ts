@@ -12,6 +12,7 @@ export default defineSchema({
     alive: v.boolean(),
     isBot: v.boolean(),
     score: v.number(),
+    hasSuper: v.optional(v.boolean()),
     lastSeen: v.number(),    // Date.now()
   }).index("by_session", ["sessionId"]),
 
@@ -19,6 +20,7 @@ export default defineSchema({
     x: v.number(),
     y: v.number(),
     spawnedAt: v.number(),
+    isSuper: v.optional(v.boolean()),
   }),
 
   state: defineTable({
