@@ -17,6 +17,7 @@ function getSessionId(): string {
 export default function App() {
   const path = typeof window !== "undefined" ? window.location.pathname : "/";
   const isAdmin = path === "/admin";
+  console.log(path);
   return (
     <main className="p-4">
       {isAdmin ? <Admin /> : <Game />}
