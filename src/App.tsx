@@ -212,6 +212,7 @@ function Admin() {
             <li>tickMs: <strong>{state.tickMs}</strong></li>
             <li>grid: <strong>{state.gridWidth} × {state.gridHeight}</strong></li>
             <li>players: <strong>{state.players.length}</strong></li>
+            <li>bots: <strong>{state.players.filter((p) => p.isBot).length}</strong></li>
             <li>fruits: <strong>{state.fruits.length}</strong></li>
           </ul>
         ) : (
@@ -234,7 +235,7 @@ function Admin() {
                  value={bots} onChange={(e) => setBots(e.target.value)} />
         </div>
         <div className="flex gap-2">
-          <button className="px-3 py-1 rounded bg-blue-600 text-white"
+          <button className="px-3 py-1 rounded bg-blue-600 text-white cursor-pointer"
                   onClick={() => setConfig({
                     tickMs: tickMs ? Number(tickMs) : undefined,
                     gridWidth: gridW ? Number(gridW) : undefined,
@@ -242,19 +243,17 @@ function Admin() {
                     maxFruits: fruits ? Number(fruits) : undefined,
                     targetBots: bots ? Number(bots) : undefined,
                   })}>Apply</button>
-          <button className="px-3 py-1 rounded border"
+          <button className="px-3 py-1 rounded border cursor-pointer"
                   onClick={() => { setTickMs(""); setGridW(""); setGridH(""); setFruits(""); setBots(""); }}>Clear</button>
         </div>
       </div>
 
       <div className="p-4 border rounded flex gap-2">
-        <button className="px-3 py-1 rounded bg-emerald-600 text-white"
+        <button className="px-3 py-1 rounded bg-emerald-600 text-white cursor-pointer"
                 onClick={() => restart({ tickMs: tickMs ? Number(tickMs) : undefined })}>Restart (keep players)</button>
-        <button className="px-3 py-1 rounded bg-rose-600 text-white"
+        <button className="px-3 py-1 rounded bg-rose-600 text-white cursor-pointer"
                 onClick={() => wipe({ tickMs: tickMs ? Number(tickMs) : undefined })}>Wipe (remove players)</button>
       </div>
-
-      <div className="text-xs text-slate-500">Tip: lower tickMs (e.g. 80) for quicker movement.</div>
     </div>
   );
 }
