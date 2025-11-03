@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as game from "../game.js";
 import type * as myFunctions from "../myFunctions.js";
 
 import type {
@@ -25,6 +26,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  game: typeof game;
   myFunctions: typeof myFunctions;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

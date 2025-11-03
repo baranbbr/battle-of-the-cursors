@@ -5,19 +5,29 @@ import { v } from "convex/values";
 export default defineSchema({
   players: defineTable({
     sessionId: v.string(),   // unique per tab/device
-    name: v.string(),        // e.g. "Player-3F2"
-    color: v.string(),       // UI color
-    x: v.number(),
-    y: v.number(),
+    name: v.string(),        // e.g. "Alice"
+    color: v.string(),       // UI color hex
+    body: v.array(v.object({ x: v.number(), y: v.number() })), // head is index 0
+    direction: v.object({ x: v.number(), y: v.number() }), // unit step
+    alive: v.boolean(),
+    isBot: v.boolean(),
+    score: v.number(),
     lastSeen: v.number(),    // Date.now()
   }).index("by_session", ["sessionId"]),
 
-  bullets: defineTable({
-    ownerSessionId: v.string(),
+  fruits: defineTable({
     x: v.number(),
     y: v.number(),
-    vx: v.number(),
-    vy: v.number(),
-    createdAt: v.number(),
-  }).index("by_owner", ["ownerSessionId"]),
+    spawnedAt: v.number(),
+  }),
+
+  state: defineTable({
+    key: v.string(), // singleton "global"
+    gridWidth: v.number(),
+    gridHeight: v.number(),
+    tickMs: v.number(),
+    lastTickAt: v.number(),
+    maxFruits: v.number(),
+    targetBots: v.number(),
+  }).index("by_key", ["key"]),
 });
