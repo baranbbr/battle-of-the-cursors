@@ -146,14 +146,17 @@ function Game() {
 
     // Fruits
     for (const f of state.fruits) {
-      // draw fruit base
-      ctx.fillStyle = f.isSuper ? "#7f1d1d" : "#ef4444";
-      ctx.fillRect(f.x * gridSize + 2, f.y * gridSize + 2, gridSize - 4, gridSize - 4);
+      // draw fruit base (normal: red, super: gold)
       if (f.isSuper) {
-        // red outline / glow for super-fruit
-        ctx.strokeStyle = "#f43f5e";
-        ctx.lineWidth = 2;
+        ctx.fillStyle = "#f59e0b"; // amber-500
+        ctx.fillRect(f.x * gridSize + 2, f.y * gridSize + 2, gridSize - 4, gridSize - 4);
+        // bright gold outline for super-fruit
+        ctx.strokeStyle = "#fbbf24"; // amber-400
+        ctx.lineWidth = 2.5;
         ctx.strokeRect(f.x * gridSize + 1.5, f.y * gridSize + 1.5, gridSize - 3, gridSize - 3);
+      } else {
+        ctx.fillStyle = "#ef4444"; // red-500
+        ctx.fillRect(f.x * gridSize + 2, f.y * gridSize + 2, gridSize - 4, gridSize - 4);
       }
     }
 
